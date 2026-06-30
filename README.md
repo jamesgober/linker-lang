@@ -26,7 +26,7 @@
         <strong>MSRV is 1.85+</strong> (Rust 2024 edition).
     </p>
     <blockquote>
-        <strong>Status: pre-1.0, in active development.</strong> The public API is being designed across the 0.x series and frozen at <code>1.0.0</code>. See <a href="./docs/API.md"><code>docs/API.md</code></a> and the <a href="./CHANGELOG.md"><code>CHANGELOG.md</code></a>.
+        <strong>Status: stable.</strong> The public API is frozen as of <code>1.0.0</code> and follows Semantic Versioning, with no breaking changes before <code>2.0</code>. See <a href="./docs/API.md#semver-promise"><code>docs/API.md</code></a> for the SemVer promise and the <a href="./CHANGELOG.md"><code>CHANGELOG.md</code></a>.
     </blockquote>
 </div>
 
@@ -49,7 +49,7 @@ The model is format-agnostic. Nothing in it names ELF or PE: an `Object` is what
 
 ```toml
 [dependencies]
-linker-lang = "0.2"
+linker-lang = "1"
 ```
 
 Or from the terminal:
@@ -196,10 +196,10 @@ The suite covers the two cost drivers — many small objects wired together by a
 
 ```toml
 # no_std build:
-linker-lang = { version = "0.2", default-features = false }
+linker-lang = { version = "1", default-features = false }
 
 # with serialization:
-linker-lang = { version = "0.2", features = ["serde"] }
+linker-lang = { version = "1", features = ["serde"] }
 ```
 
 <br>

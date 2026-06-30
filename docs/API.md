@@ -14,7 +14,7 @@
 </div>
 <br>
 
-> **Status: pre-1.0.** The surface below is being designed across the 0.x series and will be frozen at `1.0.0`. [`LinkError`](#linkerror) is `#[non_exhaustive]`, so a new failure reason stays an additive change. See [`dev/ROADMAP.md`](../dev/ROADMAP.md).
+> **Status: stable (1.0).** The surface below is the `1.0` contract: it follows [Semantic Versioning](#semver-promise) and will not change in a breaking way before `2.0`. [`LinkError`](#linkerror) is `#[non_exhaustive]`, so a new failure reason stays an additive change. See [`dev/ROADMAP.md`](../dev/ROADMAP.md).
 
 A small static linker: it combines independently compiled [`Object`](#object)s into a single laid-out [`Image`](#image) — merging sections, resolving symbols, and patching relocations. The model is format-agnostic: an ELF or PE reader feeds the same `Object`, and a writer turns an `Image` back into a file.
 
@@ -33,7 +33,7 @@ A small static linker: it combines independently compiled [`Object`](#object)s i
   - [`OutputSection`](#outputsection)
   - [`LinkError`](#linkerror)
 - [Feature flags](#feature-flags)
-- [Stability](#stability)
+- [SemVer promise](#semver-promise)
 
 <br>
 <hr>
@@ -43,7 +43,7 @@ A small static linker: it combines independently compiled [`Object`](#object)s i
 
 ```toml
 [dependencies]
-linker-lang = "0.2"
+linker-lang = "1"
 ```
 
 ```bash
@@ -459,17 +459,24 @@ assert!(err.to_string().contains("external"));
 
 ```toml
 # no_std build:
-linker-lang = { version = "0.2", default-features = false }
+linker-lang = { version = "1", default-features = false }
 
 # with serialization:
-linker-lang = { version = "0.2", features = ["serde"] }
+linker-lang = { version = "1", features = ["serde"] }
 ```
 
 <br>
 
-## Stability
+## SemVer promise
 
-The public surface is pre-1.0 and still being designed; it will be frozen at `1.0.0`, after which the crate follows [Semantic Versioning](https://semver.org) with no breaking changes before `2.0`. [`LinkError`](#linkerror) is `#[non_exhaustive]` so that a new failure reason — a new relocation kind, a new layout constraint — is an additive change rather than a breaking one. This file is updated in lockstep with every release so it always matches the code.
+As of `1.0.0` the public surface above is frozen. The crate follows [Semantic Versioning](https://semver.org):
+
+- No documented item is removed or changed in a breaking way within `1.x`; breaking changes wait for `2.0`.
+- New functionality is additive and arrives in minor releases. [`LinkError`](#linkerror) is `#[non_exhaustive]`, so a new failure reason — a new relocation kind, a new layout constraint — is a minor change, not a breaking one; a `match` on it must keep a wildcard arm.
+- The MSRV is Rust `1.85`; raising it is a minor change, never a patch.
+- Behaviour is part of the contract: a set of objects that links today keeps linking, symbol addresses are laid out the same way, and the link-map `Display` form is stable for a given image.
+
+This file is updated in lockstep with every release so it always matches the code.
 
 <br>
 <hr>

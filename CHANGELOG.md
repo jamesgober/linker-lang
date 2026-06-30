@@ -21,6 +21,20 @@
 
 ---
 
+## [1.0.0] - 2026-06-30
+
+API freeze. The public surface built in `0.2.0` — the `Object` model, the `Linker` and the `link` shortcut, the `Image`, and `LinkError` — is ratified as the `1.0` contract: it follows Semantic Versioning and carries no breaking changes before `2.0`. There is no behavioural change from `0.2.0`; a set of objects that linked then links identically now. The release adds the stability documentation and the one fix below.
+
+### Changed
+
+- Marked the public API stable and frozen as of `1.0.0`; recorded the SemVer promise in [`docs/API.md`](docs/API.md#semver-promise) and the crate root.
+
+### Fixed
+
+- Elided a redundant lifetime in `link.rs` that the MSRV (`1.85`) `clippy` flagged as `needless_lifetimes` — newer `clippy` does not, so it only surfaced on the 1.85 CI jobs. No API or behavioural change.
+
+---
+
 ## [0.2.0] - 2026-06-30
 
 The core milestone: the linker lands. This is the first release with domain logic — it combines independently compiled objects into a single laid-out image, merging sections, resolving symbols, and patching relocations. The public surface is documented in [`docs/API.md`](docs/API.md) and remains pre-1.0 (subject to change until the `1.0.0` freeze).
@@ -63,6 +77,7 @@ Initial scaffold and repository bootstrap. No domain logic yet &mdash; this rele
 - `.github/workflows/ci.yml` CI matrix; `deny.toml`, `clippy.toml`, `rustfmt.toml`.
 - `dev/ROADMAP.md` (committed plan).
 
-[Unreleased]: https://github.com/jamesgober/linker-lang/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/jamesgober/linker-lang/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/jamesgober/linker-lang/compare/v0.2.0...v1.0.0
 [0.2.0]: https://github.com/jamesgober/linker-lang/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/jamesgober/linker-lang/releases/tag/v0.1.0
