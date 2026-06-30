@@ -63,9 +63,9 @@ serde = { version = "1", optional = true, default-features = false, features = [
 # The backend whose compiled functions the end-to-end workflow tests and the `from_codegen`
 # example feed into the linker. Used only by tests and examples, so it stays a dev-only
 # dependency and the linker's public surface remains format-agnostic.
-codegen-lang = { path = "../codegen-lang", version = "1" }
-# The IR the workflow builds before lowering it with `codegen-lang`. Pinned to the same
-# published `1` that `codegen-lang` resolves, so a single `ir-lang` is shared.
+codegen-lang = "1"
+# The IR the workflow builds before lowering it with `codegen-lang`. Resolves to the same
+# published `1` that `codegen-lang` depends on, so a single `ir-lang` is shared.
 ir-lang    = "1"
 criterion  = { version = "0.5", features = ["html_reports"] }
 proptest   = "1"
