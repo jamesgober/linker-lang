@@ -323,7 +323,7 @@ fn resolve_entry(
 }
 
 /// Rebuilds the name-to-index map over already-merged sections.
-fn section_index<'a>(sections: &'a [OutputSection]) -> SectionIndex<'a> {
+fn section_index(sections: &[OutputSection]) -> SectionIndex<'_> {
     sections
         .iter()
         .enumerate()
