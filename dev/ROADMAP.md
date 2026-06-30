@@ -9,12 +9,14 @@
 Compiles, CI green, structure correct, no domain logic.
 - [x] Manifest, README, CHANGELOG, REPS, dual license, CI, deny, clippy, rustfmt.
 
-## v0.2.0 - Core (THE HARD PART, NOT DEFERRED)
-Symbol resolution, section merging, relocation patching, and output binary generation.
-Dependencies (wires codegen) are wired here, when first used.
+## v0.2.0 - Core (THE HARD PART, NOT DEFERRED) (DONE)
+Symbol resolution, section merging, relocation patching, and output image generation, over
+a format-agnostic `Object`/`Image` model. `codegen-lang` (and `ir-lang`) are wired as
+dev-dependencies, used first by the end-to-end workflow tests and the `from_codegen`
+example, which keeps the public surface free of any one container format or backend.
 Exit criteria:
-- [ ] Every public item has rustdoc + a runnable example.
-- [ ] Core invariants property-tested (full DIRECTIVES + API authored at this stage).
+- [x] Every public item has rustdoc + a runnable example.
+- [x] Core invariants property-tested (full API authored at this stage).
 
 ## v1.0.0 - API freeze
 Public surface stable and frozen until 2.0.

@@ -21,6 +21,35 @@
 
 ---
 
+## [0.2.0] - 2026-06-30
+
+The core milestone: the linker lands. This is the first release with domain logic — it combines independently compiled objects into a single laid-out image, merging sections, resolving symbols, and patching relocations. The public surface is documented in [`docs/API.md`](docs/API.md) and remains pre-1.0 (subject to change until the `1.0.0` freeze).
+
+### Added
+
+- `Object` — a compilation unit: named byte sections, the symbols defined in them, and the relocations to patch. Built with `new`, `section`, `define`, and `relocate`; sections are addressed by name and merge across objects.
+- `Width` — the size of a relocated address (`U32` / `U64`), written little-endian.
+- `Linker` — the configurable linker: a base address and an optional entry point, with `new`, `base_address`, `entry`, and `link`.
+- `link` — the shortcut for linking with the default configuration.
+- `Image` — the linked result: laid-out sections, the resolved symbol table, the entry point, accessors (`sections`, `section`, `symbol`, `symbols`, `entry`, `len`, `is_empty`), and a link-map `Display`.
+- `OutputSection` — one laid-out section: name, address, and final relocated bytes.
+- `LinkError` — the failure reason, `#[non_exhaustive]`, covering duplicate symbols, undefined symbols and entry points, invalid section names, out-of-range relocations, width overflow, and layout overflow; with `Display` and `Error` impls.
+- `serde` derives for `Image`, `OutputSection`, `Width`, and `LinkError` behind the `serde` feature.
+- Integration tests covering the end-to-end workflow — compiling functions with `codegen-lang` and linking them — invalid-input rejection tests, property tests checking the layout against an independent computation, and a `serde` round-trip suite.
+- Two runnable examples (`link_map`, `from_codegen`) and Criterion benchmarks for the symbol-resolution and section-merge cost drivers.
+- Full rustdoc with runnable examples on every public item; `docs/API.md` API reference.
+
+### Changed
+
+- Wired `codegen-lang` and `ir-lang` as dev-dependencies, used by the end-to-end workflow tests and the `from_codegen` example to drive a real IR → codegen → link pipeline. The library's public surface stays format-agnostic.
+
+### Fixed
+
+- Corrected the unparseable `keywords` and `categories` arrays in `Cargo.toml` that prevented the crate from building.
+- Aligned `clippy.toml`'s `msrv` with the crate's declared `rust-version` (`1.85`).
+
+---
+
 ## [0.1.0] - 2026-06-18
 
 Initial scaffold and repository bootstrap. No domain logic yet &mdash; this release establishes the structure, tooling, and quality gates the implementation will be built on.
@@ -32,7 +61,8 @@ Initial scaffold and repository bootstrap. No domain logic yet &mdash; this rele
 - `README.md`, `CHANGELOG.md`, and a documentation skeleton.
 - `REPS.md` compliance baseline.
 - `.github/workflows/ci.yml` CI matrix; `deny.toml`, `clippy.toml`, `rustfmt.toml`.
-- `dev/DIRECTIVES.md` and `dev/ROADMAP.md` (committed engineering standards + plan).
+- `dev/ROADMAP.md` (committed plan).
 
-[Unreleased]: https://github.com/jamesgober/linker-lang/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/jamesgober/linker-lang/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/jamesgober/linker-lang/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/jamesgober/linker-lang/releases/tag/v0.1.0
