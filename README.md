@@ -18,7 +18,7 @@
 
 <div align="left">
     <p>
-        linker-lang is the CODE-tier crate: it combines independently compiled objects into a single laid-out image — symbol resolution, section merging, and relocation patching. Part of the -lang language-construction family; see _strategy/LANG_COLLECTION.md for the master plan.
+        linker-lang is the CODE-tier crate: it combines independently compiled objects into a single laid-out image — symbol resolution, section merging, and relocation patching. Part of the -lang language-construction family.
     </p>
     <br>
     <hr>
