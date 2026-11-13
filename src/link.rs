@@ -114,8 +114,10 @@ impl Linker {
     ///
     /// Returns a [`LinkError`] if a symbol is defined twice, a relocation or the entry
     /// point names a symbol no object defines, a symbol or relocation names a section its
-    /// object never created, a relocation's slot runs past its section or its address does
-    /// not fit the relocation width, or the laid-out image would exceed the address space.
+    /// object never created, a symbol lies past the end of its section or the entry point
+    /// does not name a byte inside one, two relocations patch the same bytes, a relocation's
+    /// slot runs past its section or its address does not fit the relocation width, or the
+    /// laid-out image would exceed the address space.
     ///
     /// # Examples
     ///
@@ -139,7 +141,7 @@ impl Linker {
         place_sections(&mut sections, self.base_address)?;
         let symbols = resolve_symbols(objects, &sections, &contrib)?;
         patch_relocations(objects, &mut sections, &symbols, &contrib)?;
-        let entry = resolve_entry(self.entry.as_deref(), &symbols)?;
+        let entry = resolve_entry(self.entry.as_deref(), objects, &symbols)?;
 
         Ok(Image {
             sections,
@@ -218,6 +220,18 @@ fn resolve_symbols(
 
     for (object, object_contrib) in objects.iter().zip(contrib) {
         for symbol in &object.symbols {
+            // A symbol names a position inside its own object's bytes: the start of a byte,
+            // or one past the last byte (an end marker). Anything further would land in
+            // another object's contribution or past the image.
+            let len = object.section_data(&symbol.section).map(<[u8]>::len);
+            if len.is_some_and(|len| symbol.offset > len as u64) {
+                return Err(LinkError::SymbolOutOfRange {
+                    name: symbol.name.clone(),
+                    object: object.name.clone(),
+                    section: symbol.section.clone(),
+                    offset: symbol.offset,
+                });
+            }
             let address = symbol_address(
                 object,
                 object_contrib,
@@ -252,7 +266,13 @@ fn patch_relocations(
         .map(|(i, section)| (section.name.clone(), i))
         .collect();
 
+    // Slots already patched in the current object, as (section, start, end). Slots of
+    // different objects cannot overlap, since each lies inside its own object's
+    // contribution, so the list is per object.
+    let mut slots: Vec<(&str, u64, u64)> = Vec::new();
+
     for (object, object_contrib) in objects.iter().zip(contrib) {
+        slots.clear();
         for relocation in &object.relocations {
             let base = section_base(object, object_contrib, &relocation.section)?;
             let slot = index
@@ -276,6 +296,8 @@ fn patch_relocations(
                     section: relocation.section.clone(),
                     offset: relocation.offset,
                 })?;
+
+            slots.push((relocation.section.as_str(), relocation.offset, end));
 
             let target = symbols
                 .get(relocation.target.as_str())
@@ -302,23 +324,63 @@ fn patch_relocations(
                 Width::U64 => bytes.copy_from_slice(&(value as u64).to_le_bytes()),
             }
         }
+        reject_overlaps(object, &mut slots)?;
     }
 
     Ok(())
 }
 
+/// Refuses two relocations of one object whose slots share a byte: the later write would
+/// silently clobber part of the earlier one. Sorting keeps this `O(r log r)`.
+fn reject_overlaps(object: &Object, slots: &mut [(&str, u64, u64)]) -> Result<(), LinkError> {
+    slots.sort_unstable();
+    for pair in slots.windows(2) {
+        let (section, _, end) = pair[0];
+        let (next_section, start, _) = pair[1];
+        if section == next_section && start < end {
+            return Err(LinkError::OverlappingRelocations {
+                object: object.name.clone(),
+                section: section.into(),
+                offset: start,
+            });
+        }
+    }
+    Ok(())
+}
+
 /// Looks up the entry-point symbol, if one was configured.
+///
+/// The entry point is where execution starts, so it must name a byte its object actually
+/// contributed. A symbol one past the end of its section is a valid end marker, but not a
+/// valid entry point: it would start execution in whatever follows.
 fn resolve_entry(
     entry: Option<&str>,
+    objects: &[Object],
     symbols: &BTreeMap<String, u64>,
 ) -> Result<Option<u64>, LinkError> {
-    match entry {
-        Some(name) => symbols
-            .get(name)
-            .copied()
-            .map(Some)
-            .ok_or_else(|| LinkError::UndefinedEntry { name: name.into() }),
-        None => Ok(None),
+    let Some(name) = entry else {
+        return Ok(None);
+    };
+    let address = symbols
+        .get(name)
+        .copied()
+        .ok_or_else(|| LinkError::UndefinedEntry { name: name.into() })?;
+    // Symbol names are unique across the link (checked while resolving), so the first
+    // definition found is the only one.
+    let inside = objects.iter().find_map(|object| {
+        object
+            .symbols
+            .iter()
+            .find(|symbol| symbol.name == name)
+            .map(|symbol| {
+                let len = object.section_data(&symbol.section).map_or(0, <[u8]>::len);
+                symbol.offset < len as u64
+            })
+    });
+    if inside == Some(true) {
+        Ok(Some(address))
+    } else {
+        Err(LinkError::EntryOutOfRange { name: name.into() })
     }
 }
 

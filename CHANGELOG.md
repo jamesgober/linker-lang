@@ -11,13 +11,27 @@
 
 ## [Unreleased]
 
+---
+
+## [1.1.0] - 2026-11-12
+
+A symbol could be defined at any offset, even far past the end of its own section. It then resolved to an address inside another object's bytes or outside the image, and the entry point and any relocation that named it followed it there. The linker now checks every symbol against its own object's bytes.
+
 ### Added
 
-### Changed
+- `LinkError::SymbolOutOfRange`: a symbol's offset lies past the end of its object's bytes in its section. One past the last byte is still allowed, as an end marker.
+- `LinkError::EntryOutOfRange`: the entry point does not name a byte its object contributed, such as an end marker.
+- `LinkError::OverlappingRelocations`: two relocations of one object patch overlapping bytes.
 
 ### Fixed
 
-### Security
+- A symbol can no longer point into another object's code or past the image. Its offset must lie within its own object's contribution to the section.
+- The entry point must name a byte inside its object's section, so execution cannot start in whatever follows it.
+- Two relocations that write the same bytes are refused. Before, the later one silently overwrote part of the earlier one.
+
+### Documentation
+
+- `docs/API.md` notes that sections are placed back to back with no padding, so alignment is up to the producer.
 
 ---
 
@@ -77,7 +91,8 @@ Initial scaffold and repository bootstrap. No domain logic yet &mdash; this rele
 - `.github/workflows/ci.yml` CI matrix; `deny.toml`, `clippy.toml`, `rustfmt.toml`.
 - `dev/ROADMAP.md` (committed plan).
 
-[Unreleased]: https://github.com/jamesgober/linker-lang/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/jamesgober/linker-lang/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/jamesgober/linker-lang/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/jamesgober/linker-lang/compare/v0.2.0...v1.0.0
 [0.2.0]: https://github.com/jamesgober/linker-lang/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/jamesgober/linker-lang/releases/tag/v0.1.0
