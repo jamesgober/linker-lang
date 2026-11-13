@@ -116,3 +116,96 @@ fn test_link_error_is_usable_as_a_std_error() {
     assert!(message.contains("missing"));
     let _as_error: &dyn std::error::Error = &err;
 }
+
+#[test]
+fn test_a_symbol_past_its_section_cannot_point_into_another_object() {
+    // `a.o` contributes 4 bytes of `.text`; offset 16 would land inside `b.o`'s code.
+    let mut a = Object::new("a.o");
+    a.section(".text", [0xCC; 4]);
+    a.define("hook", ".text", 16);
+    let mut b = Object::new("b.o");
+    b.section(".text", [0x90; 32]);
+    b.define("b_fn", ".text", 0);
+
+    assert_eq!(
+        link(&[a, b]),
+        Err(LinkError::SymbolOutOfRange {
+            name: "hook".into(),
+            object: "a.o".into(),
+            section: ".text".into(),
+            offset: 16,
+        })
+    );
+}
+
+#[test]
+fn test_a_symbol_far_past_the_image_is_rejected() {
+    let mut obj = Object::new("o");
+    obj.section(".text", [0u8; 4]);
+    obj.define("far", ".text", 1 << 40);
+
+    assert!(matches!(
+        Linker::new().base_address(0x1000).link(&[obj]),
+        Err(LinkError::SymbolOutOfRange { offset, .. }) if offset == 1 << 40
+    ));
+}
+
+#[test]
+fn test_a_symbol_one_past_the_end_is_an_end_marker() {
+    let mut a = Object::new("a.o");
+    a.section(".text", [0u8; 4]);
+    a.define("a_end", ".text", 4);
+    let mut b = Object::new("b.o");
+    b.section(".text", [0u8; 4]);
+
+    let image = Linker::new().base_address(0x100).link(&[a, b]).unwrap();
+    assert_eq!(image.symbol("a_end"), Some(0x104));
+}
+
+#[test]
+fn test_an_entry_point_at_the_end_marker_is_rejected() {
+    let mut a = Object::new("a.o");
+    a.section(".text", [0u8; 4]);
+    a.define("start", ".text", 4); // one past the end: valid symbol, not valid entry
+    let mut b = Object::new("b.o");
+    b.section(".text", [0u8; 4]);
+
+    assert_eq!(
+        Linker::new().entry("start").link(&[a, b]),
+        Err(LinkError::EntryOutOfRange {
+            name: "start".into()
+        })
+    );
+}
+
+#[test]
+fn test_overlapping_relocations_are_rejected() {
+    let mut obj = Object::new("o");
+    obj.section(".data", [0u8; 12]);
+    obj.define("x", ".data", 0);
+    obj.relocate(".data", 0, "x", Width::U64, 0x1111);
+    obj.relocate(".data", 4, "x", Width::U64, 0x2222);
+
+    assert_eq!(
+        link(&[obj]),
+        Err(LinkError::OverlappingRelocations {
+            object: "o".into(),
+            section: ".data".into(),
+            offset: 4,
+        })
+    );
+}
+
+#[test]
+fn test_adjacent_relocations_are_accepted() {
+    let mut obj = Object::new("o");
+    obj.section(".data", [0u8; 12]);
+    obj.define("x", ".data", 0);
+    obj.relocate(".data", 8, "x", Width::U32, 1);
+    obj.relocate(".data", 0, "x", Width::U64, 2);
+
+    let image = link(&[obj]).unwrap();
+    let data = image.section(".data").unwrap().data();
+    assert_eq!(&data[..8], &2u64.to_le_bytes());
+    assert_eq!(&data[8..], &1u32.to_le_bytes());
+}

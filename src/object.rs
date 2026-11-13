@@ -181,7 +181,9 @@ impl Object {
     /// The symbol resolves to an absolute address once the image is laid out. Defining the
     /// same name in two objects is a [`DuplicateSymbol`](crate::LinkError::DuplicateSymbol)
     /// error at link time; naming a section the object never created is an
-    /// [`InvalidSection`](crate::LinkError::InvalidSection) error.
+    /// [`InvalidSection`](crate::LinkError::InvalidSection) error. The offset must lie within
+    /// this object's bytes in that section, or one past the last byte as an end marker;
+    /// anything further is a [`SymbolOutOfRange`](crate::LinkError::SymbolOutOfRange) error.
     ///
     /// # Examples
     ///

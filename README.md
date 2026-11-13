@@ -148,7 +148,7 @@ For a complete reference with examples, see [`docs/API.md`](./docs/API.md).
 
 ### Error handling
 
-Every way a link can fail is a distinct [`LinkError`](./docs/API.md#linkerror) variant that names the object, symbol, or section involved — a symbol defined twice, a relocation or entry point with no definition, a slot that runs past its section or an address that does not fit it. The linker reports the reason rather than producing a partial or wrong image.
+Every way a link can fail is a distinct [`LinkError`](./docs/API.md#linkerror) variant that names the object, symbol, or section involved — a symbol defined twice, a relocation or entry point with no definition, a symbol placed past the end of its section, two relocations patching the same bytes, a slot that runs past its section or an address that does not fit it. The linker reports the reason rather than producing a partial or wrong image.
 
 ```rust
 use linker_lang::{link, LinkError, Object, Width};

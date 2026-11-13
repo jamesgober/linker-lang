@@ -10,7 +10,8 @@ use crate::object::Width;
 /// A link can fail for a handful of distinct reasons: two objects claim the same symbol,
 /// a relocation or entry point names a symbol nobody defines, a relocation's slot does not
 /// fit the section it is in or the address does not fit the slot, or the laid-out image
-/// would run past the address space. Each case points at the object, symbol, or section
+/// would run past the address space. A symbol or entry point must also lie inside its own
+/// object's bytes, and two relocations may not patch the same bytes. Each case points at the object, symbol, or section
 /// involved so the producer can be fixed.
 ///
 /// The set is `#[non_exhaustive]`: a future linking feature (a new relocation kind, a new
@@ -98,6 +99,43 @@ pub enum LinkError {
     /// The laid-out image would extend past the end of the 64-bit address space. The base
     /// address plus the total section size does not fit in a `u64`.
     LayoutOverflow,
+
+    /// A symbol's offset lies past the end of its object's own bytes in that section.
+    ///
+    /// A symbol may sit at any byte its object contributed, or one past the last byte as an
+    /// end marker. An offset further out would resolve into another object's bytes or past
+    /// the image, so it is refused.
+    SymbolOutOfRange {
+        /// The symbol whose offset is out of range.
+        name: String,
+        /// The object that defined it.
+        object: String,
+        /// The section the symbol was defined in.
+        section: String,
+        /// The offset the symbol was defined at.
+        offset: u64,
+    },
+
+    /// The [entry point](crate::Linker::entry) does not name a byte its object contributed.
+    ///
+    /// An entry point must point at code its own object supplied. A symbol one past the end
+    /// of its section is a fine end marker, but execution starting there would run whatever
+    /// follows, so it is refused as an entry point.
+    EntryOutOfRange {
+        /// The configured entry symbol name.
+        name: String,
+    },
+
+    /// Two relocations of one object patch overlapping bytes of the same section. The later
+    /// write would silently overwrite part of the earlier one, so the link is refused.
+    OverlappingRelocations {
+        /// The object that requested both relocations.
+        object: String,
+        /// The section both slots are in.
+        section: String,
+        /// The offset of the slot that starts inside an earlier one.
+        offset: u64,
+    },
 }
 
 impl fmt::Display for LinkError {
@@ -137,6 +175,33 @@ impl fmt::Display for LinkError {
                     f,
                     "the resolved address of `{target}` does not fit in {} bytes",
                     width.bytes()
+                )
+            }
+            LinkError::SymbolOutOfRange {
+                name,
+                object,
+                section,
+                offset,
+            } => {
+                write!(
+                    f,
+                    "symbol `{name}` at offset {offset} lies past the end of section                      `{section}` in object `{object}`"
+                )
+            }
+            LinkError::EntryOutOfRange { name } => {
+                write!(
+                    f,
+                    "entry point `{name}` does not name a byte inside its section"
+                )
+            }
+            LinkError::OverlappingRelocations {
+                object,
+                section,
+                offset,
+            } => {
+                write!(
+                    f,
+                    "relocation at offset {offset} in section `{section}` of object                      `{object}` overlaps an earlier relocation"
                 )
             }
             LinkError::LayoutOverflow => {
@@ -191,6 +256,23 @@ mod tests {
             }
             .to_string(),
             LinkError::LayoutOverflow.to_string(),
+            LinkError::SymbolOutOfRange {
+                name: "hook".into(),
+                object: "a".into(),
+                section: ".text".into(),
+                offset: 16,
+            }
+            .to_string(),
+            LinkError::EntryOutOfRange {
+                name: "_start".into(),
+            }
+            .to_string(),
+            LinkError::OverlappingRelocations {
+                object: "a".into(),
+                section: ".data".into(),
+                offset: 4,
+            }
+            .to_string(),
         ];
         // No two variants share a message, and each names its subject.
         for (i, a) in messages.iter().enumerate() {

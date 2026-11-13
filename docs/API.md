@@ -61,8 +61,10 @@ The crate is `#![no_std]`-capable: build with `default-features = false` to drop
 A link takes a list of [`Object`](#object)s and produces one [`Image`](#image). Three things happen, in order:
 
 - **Sections merge.** A [`section`](#object) is a named run of bytes (`.text`, `.data`, …). Sections that share a name across objects are concatenated into one output section, in the order the objects are given. The output sections are then placed at addresses, end to end from the linker's base address.
-- **Symbols resolve.** A [`symbol`](#object) names an offset inside a section. Once the layout is fixed, each symbol resolves to an absolute address — its section's address, plus where its object's contribution landed in that section, plus the offset. A name defined by two objects is a [`DuplicateSymbol`](#linkerror).
-- **Relocations patch.** A [`relocation`](#object) is a hole at some offset in a section that must hold the address of a named symbol, plus an addend. The linker looks the target up, adds the addend, and writes the result into the section bytes little-endian, in the requested [`Width`](#width).
+- **Symbols resolve.** A [`symbol`](#object) names an offset inside a section. Once the layout is fixed, each symbol resolves to an absolute address — its section's address, plus where its object's contribution landed in that section, plus the offset. The offset must lie within the object's own bytes in that section (one past the last byte is allowed, as an end marker), so a symbol can never point into another object's code. A name defined by two objects is a [`DuplicateSymbol`](#linkerror).
+- **Relocations patch.** A [`relocation`](#object) is a hole at some offset in a section that must hold the address of a named symbol, plus an addend. The linker looks the target up, adds the addend, and writes the result into the section bytes little-endian, in the requested [`Width`](#width). Two relocations may not patch the same bytes.
+
+Sections are placed back to back with no padding, so aligning code and data is up to the producer: size each contribution to the alignment the next one needs.
 
 The result is an [`Image`](#image) whose section bytes are final and whose symbol table records where everything ended up. Nothing in the model names a container format: the same `Object` is what an ELF or PE reader would populate, and an `Image` is what a writer would serialize.
 
@@ -393,6 +395,9 @@ pub enum LinkError {
     RelocationOutOfRange { object: String, section: String, offset: u64 },
     RelocationOverflow { target: String, width: Width },
     LayoutOverflow,
+    SymbolOutOfRange { name: String, object: String, section: String, offset: u64 },
+    EntryOutOfRange { name: String },
+    OverlappingRelocations { object: String, section: String, offset: u64 },
 }
 ```
 
@@ -409,6 +414,9 @@ The reason a link could not be completed. Each variant points at the object, sym
 | `RelocationOutOfRange { object, section, offset }` | A relocation's slot runs past the end of its section. | Correct the offset, or size the section to cover the slot. |
 | `RelocationOverflow { target, width }` | The resolved address is negative after the addend, or larger than `width` holds. | Widen the slot, or adjust the layout so the address fits. |
 | `LayoutOverflow` | The laid-out image would exceed the 64-bit address space. | Lower the base address or the total section size. |
+| `SymbolOutOfRange { name, object, section, offset }` | A symbol's `offset` lies past the end of its object's bytes in `section`. One past the last byte is allowed, as an end marker. | Correct the offset, or size the section to cover it. |
+| `EntryOutOfRange { name }` | The entry point does not name a byte its object contributed, for example an end marker. | Point the entry at code inside its section. |
+| `OverlappingRelocations { object, section, offset }` | Two relocations in `object` patch overlapping bytes of `section`; `offset` is where the later slot starts. | Give each relocation its own slot. |
 
 **Examples**
 
